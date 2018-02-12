@@ -1,66 +1,22 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 """TODO: Write project description"""
 
+import os
 import sys
-import logging
-import ConfigParser
+import random
+import configparser
 
-import FBBack
-
-
-class Logr:
-    """Abstraction layer for logs"""
-    log_format = None
-    root_logger = None
-    file_handler = None
-    console_handler = None
-
-    def initiate_file_handler(self):
-        """Adds file logs"""
-        self.file_handler = logging.FileHandler("logs.txt")
-        self.file_handler.setFormatter(self.log_format)
-        self.root_logger.addHandler(self.file_handler)
-
-    def initiate_console_handler(self):
-        """Adds console logs"""
-# TODO:
-#       add options to reset logs on new launch
-        self.console_handler = logging.StreamHandler()
-        self.console_handler.setFormatter(self.log_format)
-        self.root_logger.addHandler(self.console_handler)
-
-    def __init__(self, log_to_file, custom_format=""):
-        """Initiates logers"""
-        if custom_format is not "":
-            self.log_format = logging.Formatter(custom_format)
-        else:
-            self.log_format = logging.Formatter("[%(asctime)s] [%(threadName)s] [%(levelname)s] : %(message)s")
-        self.root_logger = logging.getLogger()
-        self.root_logger.setLevel(logging.DEBUG)
-
-        if log_to_file is True:
-            self.initiate_file_handler()
-        self.initiate_console_handler()
-
-    def log(self, message):
-        self.root_logger.info(message)
-
-    def debug(self, message):
-        self.root_logger.debug(message)
-
-    def error(self, message):
-        self.root_logger.error(message)
-
-
-logr = Logr(True)
+from fbchat import log
+from fbchat.models import *
+from fbchat import Client as FBClient
 
 
 class Confgr:
     """Abstraction layer for configuration and credentials
         management """
-    config = ConfigParser.ConfigParser()
+    config = configparser.ConfigParser()
 
     # Facebook
     fb_pass = ""
@@ -72,7 +28,7 @@ class Confgr:
     # MemeBot
     stopMSG = ""
     startMSG = ""
-    updateMSG = ""
+    memesDIR = ""
 
     def __init__(self, config_path):
         """Reads configuration from given file"""
@@ -87,11 +43,52 @@ class Confgr:
 
             self.stopMSG = self.config.get("MemeBot", "stopMSG")
             self.startMSG = self.config.get("MemeBot", "startMSG")
-            self.updateMSG = self.config.get("MemeBot", "updateMSG")
+            self.memesDIR = self.config.get("MemeBot", "memesDIR")
         except:
-            logr.error("failed to load configuration")
+            log.info("Failed to load configuration")
             sys.exit(-1)
-        logr.log("succesfuly loaded configuration")
+        log.info("Succesfuly loaded configuration")
 
 
 confgr = Confgr("config.ini")
+
+
+class MemeBot(FBClient):
+    """Class description"""
+
+    def exit(self):
+        if confgr.stopMSG is not None:
+            with open(confgr.stopMSG, "r") as stopFile:
+                msg = stopFile.read()
+                self.send(Message(msg), confgr.fb_chat_id, thread_type=ThreadType.GROUP)
+
+        self.logout()
+        log.info("Powering off...")
+        sys.exit(0)
+
+    def onMessage(self, author_id, message_object, thread_id, thread_type, **kwargs):
+        if author_id == self.uid:
+            log.info("Skipping own messages")
+            return
+
+        if author_id == confgr.fb_admin_id:
+            if message_object.text == "/down":
+                self.exit()
+
+        if message_object.text == "@" + str(confgr.fb_bot_user):
+            self.sendMeme(thread_id, thread_type)
+
+    def sendMeme(self, thread_id, thread_type=ThreadType.GROUP):
+        memePath = str(confgr.memesDIR + random.choice(os.listdir(confgr.memesDIR)))
+        self.sendLocalImage(memePath, thread_id=thread_id, thread_type=thread_type)
+        log.info("Sending %s meme", memePath)
+
+
+fb_bot = MemeBot(confgr.fb_email, confgr.fb_pass)
+
+if confgr.startMSG is not None:
+    with open(confgr.startMSG, "r") as startFile:
+        msg = startFile.read()
+        fb_bot.send(Message(msg), thread_id=confgr.fb_chat_id, thread_type=ThreadType.GROUP)
+
+fb_bot.listen()
