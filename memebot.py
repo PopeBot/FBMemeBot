@@ -101,7 +101,7 @@ def SiegPope():
     delta_t = swarmTime - startTime
     secs = delta_t.seconds + 1
 
-    t = Timer(secs, hello_world)
+    t = Timer(secs, SiegPope)
     t.start()
 
 
