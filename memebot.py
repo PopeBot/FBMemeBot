@@ -12,6 +12,9 @@ from fbchat import log
 from fbchat.models import *
 from fbchat import Client as FBClient
 
+from datetime import datetime
+from threading import Timer
+
 
 class Confgr:
     """Abstraction layer for configuration and credentials
@@ -62,6 +65,7 @@ class MemeBot(FBClient):
                 msg = stopFile.read()
                 self.send(Message(msg), confgr.fb_chat_id, thread_type=ThreadType.GROUP)
 
+        t.cancel()
         self.logout()
         log.info("Powering off...")
         sys.exit(0)
@@ -86,9 +90,31 @@ class MemeBot(FBClient):
 
 fb_bot = MemeBot(confgr.fb_email, confgr.fb_pass)
 
+
+def SiegPope():
+    for _ in range(21):
+        fb_bot.send(Message("2137 iksdeee"), confgr.fb_chat_id, thread_type=ThreadType.GROUP)
+        fb_bot.sendMeme(confgr.fb_chat_id)
+
+    startTime = datetime.today()
+    swarmTime = startTime.replace(day=startTime.day + 1, hour=21, minute=37, second=0, microsecond=0)
+    delta_t = swarmTime - startTime
+    secs = delta_t.seconds + 1
+
+    t = Timer(secs, hello_world)
+    t.start()
+
+
+startTime = datetime.today()
+swarmTime = startTime.replace(day=startTime.day + 1, hour=21, minute=37, second=0, microsecond=0)
+delta_t = swarmTime - startTime
+secs = delta_t.seconds + 1
+
 if confgr.startMSG is not None:
     with open(confgr.startMSG, "r") as startFile:
         msg = startFile.read()
         fb_bot.send(Message(msg), thread_id=confgr.fb_chat_id, thread_type=ThreadType.GROUP)
 
+t = Timer(secs, SiegPope)
+t.start()
 fb_bot.listen()
